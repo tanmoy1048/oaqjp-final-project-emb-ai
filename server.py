@@ -1,0 +1,43 @@
+from flask import Flask, request, make_response, jsonify
+from typing import Dict
+
+from emotion_detection import emotion_detector
+
+app = Flask(__name__)
+
+
+@app.route('/emotionDetector', methods=['GET'])
+def emotion_detector_api():
+    """Accepts JSON {"text": "..."} and returns a plain-text formatted emotion summary.
+
+    Example response:
+    "For the given statement, the system response is 'anger': 0.006274985, 'disgust': 0.0025598293, 'fear': 0.009251528, 'joy': 0.9680386 and 'sadness': 0.049744144. The dominant emotion is joy."
+    """
+    text = request.args.get('text', '')
+
+    try:
+        result: Dict[str, float] = emotion_detector(text)
+    except Exception as e:
+        return make_response(jsonify({'error': 'Failed to analyze text', 'details': str(e)}), 500)
+
+    # Format the response string with 9 decimal places for floats to match example precision
+    formatted = (
+        f"For the given statement, the system response is 'anger': {result.get('anger', 0.0):.9f}, "
+        f"'disgust': {result.get('disgust', 0.0):.9f}, 'fear': {result.get('fear', 0.0):.9f}, "
+        f"'joy': {result.get('joy', 0.0):.9f} and 'sadness': {result.get('sadness', 0.0):.9f}. "
+        f"The dominant emotion is {result.get('dominant_emotion', 'unknown')}.")
+
+    response = make_response(formatted, 200)
+    response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    return response
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """Render the frontend index page from the templates directory."""
+    return render_template('index.html')
+
+
+if __name__ == '__main__':
+    # Run on all interfaces so it can be called from your frontend during development
+    app.run(host='0.0.0.0', port=5000, debug=True)
